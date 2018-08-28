@@ -1,0 +1,12 @@
+{
+    "CN": "test.arista-proxy.svc.cluster.local",
+    "names": [
+        {
+            "C":  "US",
+            "L":  "San Francisco",
+            "O":  "Internet Widgets, Inc.",
+            "OU": "WWW",
+            "ST": "California"
+        }
+    ]
+}
