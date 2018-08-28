@@ -24,15 +24,15 @@ Concepts
 
 All certs for mutual auth have the following CN/SAN format:
 
-   <job>.<principal>.<realm>
+    <job>.<principal>.<realm>
 
 For example, if principal maps into a 'group' and job into a 'user':
 
-   arista-proxy-dcr01u23.cluster-management-prod.c.example.com
+    arista-proxy-dcr01u23.cluster-management-prod.c.example.com
 
-   job = arista-proxy-dcr01u23
-   principal = cluster-management-prod
-   realm = c.example.com
+    job = arista-proxy-dcr01u23
+    principal = cluster-management-prod
+    realm = c.example.com
 
 The Realm is a DNS name that is global to all jobs that need mutual authentication.
 
