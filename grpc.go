@@ -38,6 +38,7 @@ var (
 	flagCertificatePath string
 	flagKeyPath         string
 	flagPKIRealm        string
+	flagPKIDisable      bool
 
 	// Enable logging HSPKI info into traces
 	Trace = true
@@ -53,6 +54,7 @@ func init() {
 	flag.StringVar(&flagCertificatePath, "hspki_tls_certificate_path", "pki/service.pem", "Path to PKI service certificate")
 	flag.StringVar(&flagKeyPath, "hspki_tls_key_path", "pki/service-key.pem", "Path to PKI service private key")
 	flag.StringVar(&flagPKIRealm, "hspki_realm", "svc.cluster.local", "PKI realm")
+	flag.BoolVar(&flagPKIDisable, "hspki_disable", false, "Disable PKI entirely (insecure!)")
 	Log.SetHandler(log.DiscardHandler())
 }
 
@@ -166,6 +168,9 @@ func WithServerHSPKI() []grpc.ServerOption {
 		log.Crit("WithServerHSPKI called before flag.Parse!")
 		os.Exit(1)
 	}
+	if flagPKIDisable {
+		return []grpc.ServerOption{}
+	}
 	serverCert, err := tls.LoadX509KeyPair(flagCertificatePath, flagKeyPath)
 	if err != nil {
 		log.Crit("WithServerHSPKI: cannot load service certificate/key", "err", err)
@@ -192,4 +197,39 @@ func WithServerHSPKI() []grpc.ServerOption {
 	interceptor := grpc.UnaryInterceptor(grpcInterceptor)
 
 	return []grpc.ServerOption{creds, interceptor}
+}
+
+// WithClientHSPKI is a grpc.DialOption that ensures that we have the right credentials
+// loaded when talking to a HSPKI service.
+func WithClientHSPKI() grpc.DialOption {
+	if !flag.Parsed() {
+		log.Crit("WithServerHSPKI called before flag.Parse!")
+		os.Exit(1)
+	}
+	if flagPKIDisable {
+		return grpc.WithInsecure()
+	}
+
+	certPool := x509.NewCertPool()
+	ca, err := ioutil.ReadFile(flagCAPath)
+	if err != nil {
+		log.Crit("WithClientHSPKI: cannot load CA certificate", "err", err)
+		os.Exit(1)
+	}
+	if ok := certPool.AppendCertsFromPEM(ca); !ok {
+		log.Crit("WithClientHSPKI: cannot use CA certificate", "err", err)
+		os.Exit(1)
+	}
+
+	clientCert, err := tls.LoadX509KeyPair(flagCertificatePath, flagKeyPath)
+	if err != nil {
+		log.Crit("WithClientHSPKI: cannot load service certificate/key", "err", err)
+		os.Exit(1)
+	}
+
+	creds := credentials.NewTLS(&tls.Config{
+		Certificates: []tls.Certificate{clientCert},
+		RootCAs:      certPool,
+	})
+	return grpc.WithTransportCredentials(creds)
 }
