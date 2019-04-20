@@ -23,7 +23,7 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/golang/glog"
+	log "github.com/inconshreveable/log15"
 	"golang.org/x/net/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -40,8 +40,7 @@ var (
 
 	// Enable logging HSPKI info into traces
 	Trace = true
-	// Enable logging HSPKI info into glog
-	Log = false
+	Log   = log.New()
 )
 
 const (
@@ -53,12 +52,12 @@ func init() {
 	flag.StringVar(&flagCertificatePath, "hspki_tls_certificate_path", "pki/service.pem", "Path to PKI service certificate")
 	flag.StringVar(&flagKeyPath, "hspki_tls_key_path", "pki/service-key.pem", "Path to PKI service private key")
 	flag.StringVar(&flagPKIRealm, "hspki_realm", "svc.cluster.local", "PKI realm")
+	Log.SetHandler(log.DiscardHandler())
 }
 
 func maybeTrace(ctx context.Context, f string, args ...interface{}) {
-	if Log {
-		glog.Infof(f, args...)
-	}
+	fmtd := fmt.Sprintf(f, args...)
+	Log.Info("trace msg", fmtd)
 
 	if !Trace {
 		return
@@ -67,8 +66,7 @@ func maybeTrace(ctx context.Context, f string, args ...interface{}) {
 	tr, ok := trace.FromContext(ctx)
 	if !ok {
 		if !Log {
-			fmtd := fmt.Sprintf(f, args...)
-			glog.Info("[no trace] %v", fmtd)
+			log.Warning("no trace", "msg", fmtd)
 		}
 		return
 	}
@@ -166,20 +164,20 @@ func ClientInfoFromContext(ctx context.Context) *ClientInfo {
 //   using ClientInfoFromContext
 func WithServerHSPKI() []grpc.ServerOption {
 	if !flag.Parsed() {
-		glog.Exitf("WithServerHSPKI called before flag.Parse!")
+		log.Crit("WithServerHSPKI called before flag.Parse!")
 	}
 	serverCert, err := tls.LoadX509KeyPair(flagCertificatePath, flagKeyPath)
 	if err != nil {
-		glog.Exitf("WithServerHSPKI: cannot load service certificate/key: %v", err)
+		log.Crit("WithServerHSPKI: cannot load service certificate/key", "err", err)
 	}
 
 	certPool := x509.NewCertPool()
 	ca, err := ioutil.ReadFile(flagCAPath)
 	if err != nil {
-		glog.Exitf("WithServerHSPKI: cannot load CA certificate: %v", err)
+		log.Crit("WithServerHSPKI: cannot load CA certificate", "err", err)
 	}
 	if ok := certPool.AppendCertsFromPEM(ca); !ok {
-		glog.Exitf("WithServerHSPKI: cannot use CA certificate: %v", err)
+		log.Crit("WithServerHSPKI: cannot use CA certificate", "err", err)
 	}
 
 	creds := grpc.Creds(credentials.NewTLS(&tls.Config{
