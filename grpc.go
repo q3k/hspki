@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strings"
 
 	log "github.com/inconshreveable/log15"
@@ -163,19 +164,23 @@ func ClientInfoFromContext(ctx context.Context) *ClientInfo {
 func WithServerHSPKI() []grpc.ServerOption {
 	if !flag.Parsed() {
 		log.Crit("WithServerHSPKI called before flag.Parse!")
+		os.Exit(1)
 	}
 	serverCert, err := tls.LoadX509KeyPair(flagCertificatePath, flagKeyPath)
 	if err != nil {
 		log.Crit("WithServerHSPKI: cannot load service certificate/key", "err", err)
+		os.Exit(1)
 	}
 
 	certPool := x509.NewCertPool()
 	ca, err := ioutil.ReadFile(flagCAPath)
 	if err != nil {
 		log.Crit("WithServerHSPKI: cannot load CA certificate", "err", err)
+		os.Exit(1)
 	}
 	if ok := certPool.AppendCertsFromPEM(ca); !ok {
 		log.Crit("WithServerHSPKI: cannot use CA certificate", "err", err)
+		os.Exit(1)
 	}
 
 	creds := grpc.Creds(credentials.NewTLS(&tls.Config{
