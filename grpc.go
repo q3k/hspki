@@ -65,9 +65,7 @@ func maybeTrace(ctx context.Context, f string, args ...interface{}) {
 
 	tr, ok := trace.FromContext(ctx)
 	if !ok {
-		if !Log {
-			log.Warning("no trace", "msg", fmtd)
-		}
+		log.Warn("no trace", "msg", fmtd)
 		return
 	}
 	tr.LazyPrintf(f, args...)
